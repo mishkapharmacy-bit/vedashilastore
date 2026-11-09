@@ -39,8 +39,13 @@ class ProductViewModel(
   private val repository: ProductRepository = ProductRepository.getInstance(application)
 ) : AndroidViewModel(application) {
 
+  private val prefs = application.getSharedPreferences("vedashila_recent_searches", android.content.Context.MODE_PRIVATE)
+
   private val _searchQuery = MutableStateFlow("")
   val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+  private val _recentQueries = MutableStateFlow<List<String>>(loadRecentQueries())
+  val recentQueries: StateFlow<List<String>> = _recentQueries.asStateFlow()
 
   private val _selectedCategory = MutableStateFlow<String?>(null)
   val selectedCategory: StateFlow<String?> = _selectedCategory.asStateFlow()
@@ -95,6 +100,48 @@ class ProductViewModel(
 
   fun setSearchQuery(query: String) {
     _searchQuery.value = query
+  }
+
+  /**
+   * Commits a search query to the last 5 recent searches list and persists it in SharedPreferences.
+   */
+  fun submitSearchQuery(query: String) {
+    val trimmed = query.trim()
+    if (trimmed.isBlank()) return
+
+    val current = _recentQueries.value.toMutableList()
+    current.remove(trimmed)
+    current.add(0, trimmed)
+    val updated = current.take(5)
+    _recentQueries.value = updated
+
+    prefs.edit()
+      .putString("queries", updated.joinToString("|||"))
+      .apply()
+  }
+
+  fun removeRecentQuery(query: String) {
+    val updated = _recentQueries.value.filter { it != query }
+    _recentQueries.value = updated
+    prefs.edit()
+      .putString("queries", updated.joinToString("|||"))
+      .apply()
+  }
+
+  fun clearRecentQueries() {
+    _recentQueries.value = emptyList()
+    prefs.edit().remove("queries").apply()
+  }
+
+  private fun loadRecentQueries(): List<String> {
+    val saved = prefs.getString("queries", null) ?: return listOf(
+      "Shilajit",
+      "Kumkumadi",
+      "Ashwagandha",
+      "Chyawanprash",
+      "Triphala"
+    )
+    return saved.split("|||").filter { it.isNotBlank() }.take(5)
   }
 
   fun selectCategory(category: String?) {

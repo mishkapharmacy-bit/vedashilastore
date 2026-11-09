@@ -31,6 +31,9 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.Notifications
@@ -46,6 +49,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -110,8 +115,10 @@ fun ProductListScreen(
   val context = LocalContext.current
   val uiState by viewModel.uiState.collectAsStateWithLifecycle()
   val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+  val recentQueries by viewModel.recentQueries.collectAsStateWithLifecycle()
   val selectedCategory by viewModel.selectedCategory.collectAsStateWithLifecycle()
   val selectedDetailProduct by viewModel.selectedProduct.collectAsStateWithLifecycle()
+  var isSearchDropdownExpanded by remember { mutableStateOf(false) }
 
   // Low stock threshold state
   val alertThreshold by InventoryAlertService.threshold.collectAsStateWithLifecycle()
@@ -263,61 +270,199 @@ fun ProductListScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Search Input Field with Real-Time Filtering as User Types
-        OutlinedTextField(
-          value = searchQuery,
-          onValueChange = { viewModel.setSearchQuery(it) },
-          modifier = Modifier
-            .fillMaxWidth()
-            .testTag("search_bar_product_list"),
-          placeholder = {
-            Text(
-              "Filter products by name in real-time...",
-              fontSize = 13.sp,
-              color = Color(0xFF8B9E94)
+        // Search Input Field with Real-Time Filtering & Drop-down for last 5 queries
+        Box(modifier = Modifier.fillMaxWidth()) {
+          OutlinedTextField(
+            value = searchQuery,
+            onValueChange = {
+              viewModel.setSearchQuery(it)
+              if (it.isNotBlank() && it.length >= 2) {
+                viewModel.submitSearchQuery(it)
+              }
+            },
+            modifier = Modifier
+              .fillMaxWidth()
+              .testTag("search_bar_product_list"),
+            placeholder = {
+              Text(
+                "Filter products by name in real-time...",
+                fontSize = 13.sp,
+                color = Color(0xFF8B9E94)
+              )
+            },
+            leadingIcon = {
+              Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = "Search products by name",
+                tint = VedashilaPrimaryGreen
+              )
+            },
+            trailingIcon = {
+              Row(verticalAlignment = Alignment.CenterVertically) {
+                if (searchQuery.isNotEmpty()) {
+                  IconButton(
+                    onClick = { viewModel.setSearchQuery("") },
+                    modifier = Modifier.testTag("btn_clear_product_search")
+                  ) {
+                    Icon(
+                      imageVector = Icons.Default.Clear,
+                      contentDescription = "Clear search",
+                      tint = Color.Gray
+                    )
+                  }
+                }
+                // Dropdown trigger button showing last 5 queries
+                if (recentQueries.isNotEmpty()) {
+                  IconButton(
+                    onClick = { isSearchDropdownExpanded = !isSearchDropdownExpanded },
+                    modifier = Modifier.testTag("btn_search_history_dropdown")
+                  ) {
+                    Icon(
+                      imageVector = Icons.Default.History,
+                      contentDescription = "Recent Searches",
+                      tint = if (isSearchDropdownExpanded) VedashilaPrimaryGreen else Color(0xFF6B7A72),
+                      modifier = Modifier.size(20.dp)
+                    )
+                  }
+                }
+              }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+              focusedBorderColor = VedashilaPrimaryGreen,
+              unfocusedBorderColor = VedashilaBorder,
+              focusedContainerColor = Color(0xFFF7F9F7),
+              unfocusedContainerColor = Color(0xFFF7F9F7)
             )
-          },
-          leadingIcon = {
-            Icon(
-              imageVector = Icons.Default.Search,
-              contentDescription = "Search products by name",
-              tint = VedashilaPrimaryGreen
-            )
-          },
-          trailingIcon = {
-            if (searchQuery.isNotEmpty()) {
-              IconButton(
-                onClick = { viewModel.setSearchQuery("") },
-                modifier = Modifier.testTag("btn_clear_product_search")
-              ) {
+          )
+
+          // Drop-down displaying the last 5 search queries for quick access
+          DropdownMenu(
+            expanded = isSearchDropdownExpanded,
+            onDismissRequest = { isSearchDropdownExpanded = false },
+            modifier = Modifier
+              .fillMaxWidth(0.92f)
+              .background(Color.White, RoundedCornerShape(12.dp))
+              .testTag("menu_recent_searches")
+          ) {
+            Row(
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+              horizontalArrangement = Arrangement.SpaceBetween,
+              verticalAlignment = Alignment.CenterVertically
+            ) {
+              Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                  imageVector = Icons.Default.Clear,
-                  contentDescription = "Clear search",
-                  tint = Color.Gray
+                  imageVector = Icons.Default.History,
+                  contentDescription = null,
+                  tint = VedashilaGold,
+                  modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                  text = "Recent Searches (Last 5)",
+                  fontSize = 12.sp,
+                  fontWeight = FontWeight.Bold,
+                  color = Color(0xFF14201A)
                 )
               }
+              Text(
+                text = "Clear",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFD32F2F),
+                modifier = Modifier
+                  .clickable {
+                    viewModel.clearRecentQueries()
+                    isSearchDropdownExpanded = false
+                  }
+                  .padding(4.dp)
+                  .testTag("btn_clear_all_recent_searches")
+              )
             }
-          },
-          singleLine = true,
-          shape = RoundedCornerShape(12.dp),
-          colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = VedashilaPrimaryGreen,
-            unfocusedBorderColor = VedashilaBorder,
-            focusedContainerColor = Color(0xFFF7F9F7),
-            unfocusedContainerColor = Color(0xFFF7F9F7)
-          )
-        )
+
+            recentQueries.take(5).forEach { queryItem ->
+              DropdownMenuItem(
+                text = {
+                  Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                  ) {
+                    Row(
+                      verticalAlignment = Alignment.CenterVertically,
+                      modifier = Modifier.weight(1f)
+                    ) {
+                      Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = null,
+                        tint = VedashilaPrimaryGreen,
+                        modifier = Modifier.size(16.dp)
+                      )
+                      Spacer(modifier = Modifier.width(8.dp))
+                      Text(
+                        text = queryItem,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Color(0xFF14201A)
+                      )
+                    }
+
+                    IconButton(
+                      onClick = { viewModel.removeRecentQuery(queryItem) },
+                      modifier = Modifier.size(24.dp)
+                    ) {
+                      Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Remove query",
+                        tint = Color.LightGray,
+                        modifier = Modifier.size(14.dp)
+                      )
+                    }
+                  }
+                },
+                onClick = {
+                  viewModel.setSearchQuery(queryItem)
+                  viewModel.submitSearchQuery(queryItem)
+                  isSearchDropdownExpanded = false
+                },
+                modifier = Modifier.testTag("item_recent_search_$queryItem")
+              )
+            }
+          }
+        }
 
         if (searchQuery.isNotBlank()) {
           val count = (uiState as? ProductUiState.Success)?.products?.size ?: 0
           Spacer(modifier = Modifier.height(4.dp))
-          Text(
-            text = "Filtering by name: \"$searchQuery\" ($count matches)",
-            fontSize = 11.sp,
-            color = VedashilaPrimaryGreen,
-            fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(horizontal = 4.dp)
-          )
+          Row(
+            modifier = Modifier
+              .fillMaxWidth()
+              .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+          ) {
+            Text(
+              text = "Filtering by name: \"$searchQuery\" ($count matches)",
+              fontSize = 11.sp,
+              color = VedashilaPrimaryGreen,
+              fontWeight = FontWeight.Medium
+            )
+            Text(
+              text = "Save search",
+              fontSize = 10.5.sp,
+              color = VedashilaGold,
+              fontWeight = FontWeight.Bold,
+              modifier = Modifier
+                .clickable {
+                  viewModel.submitSearchQuery(searchQuery)
+                  Toast.makeText(context, "Saved to recent searches", Toast.LENGTH_SHORT).show()
+                }
+                .testTag("btn_save_current_search")
+            )
+          }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
