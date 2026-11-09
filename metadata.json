@@ -1,0 +1,6 @@
+{
+  "name": "Vedashila",
+  "description": "Official companion & marketing suite for vedashila.com with 10,000+ products, real-time inventory, payment gateway integration, social poster & video ad maker for Instagram, WhatsApp, Facebook, and YouTube.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
